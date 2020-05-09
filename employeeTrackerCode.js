@@ -1,7 +1,7 @@
-var mysql = require("mysql");
-var inquirer = require("inquirer");
+const mysql = require("mysql");
+const inquirer = require("inquirer");
 
-var connection = mysql.createConnection({
+const connection = mysql.createConnection({
   host: "localhost",
 
   // Your port; if not 3306
@@ -12,11 +12,22 @@ var connection = mysql.createConnection({
 
   // Your password
   password: "",
-  database: "employee_DB"
+  database: "employee_db"
 });
 
-connection.connect(function(err) {
+connection.connect(function (err) {
   if (err) throw err;
+  console.log("connected as id " + connection.threadId);
+  console.log("***************************************")
+  console.log("***************************************")
+  console.log("*                                     *")
+  console.log("*        EMPLOYEE                     *")
+  console.log("*                                     *")
+  console.log("*                 TRACKER             *")
+  console.log("*                                     *")
+  console.log("*                                     *")
+  console.log("***************************************")
+  console.log("***************************************")
   runSearch();
 });
 
@@ -36,169 +47,193 @@ function runSearch() {
         "Update Employee Manager"
       ]
     })
-    .then(function(answer) {
+    .then(function (answer) {
       switch (answer.action) {
-      case "View all Employees":
-        artistSearch();
-        break;
+        case "View all Employees":
+          employeeView();
+          break;
 
-      case "View all Employees by Department":
-        multiSearch();
-        break;
+        case "View all Employees by Department":
+          depView();
+          break;
 
-      case "View all Employees by Manager":
-        rangeSearch();
-        break;
+        case "View all Employees by Manager":
+          managerView();
+          break;
 
-      case "Add Employee":
-        songSearch();
-        break;
+        case "Add Employee":
+          addEmp();
+          break;
 
-      case "Remove Employee":
-        songAndAlbumSearch();
-        break;
+        case "Remove Employee":
+          delEmp();
+          break;
 
         case "Update Employee Role":
-        songAndAlbumSearch();
-        break;
+          updateEmpRole();
+          break;
 
         case "Update Employee Manager":
-        songAndAlbumSearch();
-        break;
+          updateEmpManager();
+          break;
       }
     });
 }
 
-function artistSearch() {
+function employeeView() {
+  connection.query("SELECT * FROM employee", function (err, results) {
+    if (err) throw err;
+    console.table(results);
+    runSearch();
+  })
+}
+
+function depView() {
+  connection.query("SELECT * FROM department", function (err, results) {
+    if (err) throw err;
+    console.table(results);
+    runSearch();
+  })
+}
+
+function managerView() {
   inquirer
-    .prompt({
-      name: "artist",
+    .prompt([{
+      name: "managerID",
       type: "input",
-      message: "What artist would you like to search for?"
-    })
-    .then(function(answer) {
-      var query = "SELECT position, song, year FROM top5000 WHERE ?";
-      connection.query(query, { artist: answer.artist }, function(err, res) {
-        for (var i = 0; i < res.length; i++) {
-          console.log("Position: " + res[i].position + " || Song: " + res[i].song + " || Year: " + res[i].year);
-        }
+      message: "What is the Manager ID to search?"
+    }
+    ]).then(function (answer) {
+      var query = "SELECT * FROM employee WHERE manager_id = ?"
+
+      connection.query(query, [answer.managerID] , function (err, results) {
+        if (err) throw err;
+        console.table(results);
         runSearch();
       });
     });
 }
 
-function multiSearch() {
-  var query = "SELECT artist FROM top5000 GROUP BY artist HAVING count(*) > 1";
-  connection.query(query, function(err, res) {
-    for (var i = 0; i < res.length; i++) {
-      console.log(res[i].artist);
-    }
-    runSearch();
-  });
-}
 
-function rangeSearch() {
+function addEmp() {
   inquirer
     .prompt([
       {
-        name: "start",
+        name: "firstName",
         type: "input",
-        message: "Enter starting position: ",
-        validate: function(value) {
-          if (isNaN(value) === false) {
-            return true;
-          }
-          return false;
-        }
+        message: "What is the Employees first name?"
       },
       {
-        name: "end",
+        name: "lastName",
         type: "input",
-        message: "Enter ending position: ",
-        validate: function(value) {
-          if (isNaN(value) === false) {
-            return true;
-          }
-          return false;
-        }
+        message: "What is the Employees last name?"
+      },
+      {
+        name: "roleID",
+        type: "input",
+        message: "What is the Employees role ID?"
+      },
+      {
+        name: "managerID",
+        type: "input",
+        message: "What is the Employees manager ID?"
       }
-    ])
-    .then(function(answer) {
-      var query = "SELECT position,song,artist,year FROM top5000 WHERE position BETWEEN ? AND ?";
-      connection.query(query, [answer.start, answer.end], function(err, res) {
-        for (var i = 0; i < res.length; i++) {
-          console.log(
-            "Position: " +
-              res[i].position +
-              " || Song: " +
-              res[i].song +
-              " || Artist: " +
-              res[i].artist +
-              " || Year: " +
-              res[i].year
-          );
+    ]).then(function (answer) {
+      connection.query("INSERT INTO employee SET ?",
+        {
+          first_name: answer.firstName,
+          last_name: answer.lastName,
+          role_id: answer.roleID,
+          manager_id: answer.managerID
+        },
+        function (err) {
+          if (err) throw err;
+          console.log("Employee was created!!");
+          // re-prompt the user for if they want to bid or post
+          runSearch();
         }
+      );
+
+    })
+}
+
+function delEmp() {
+  inquirer
+    .prompt([{
+      name: "roleID",
+      type: "input",
+      message: "What is the removed employee's role ID?"
+    }
+    ]).then(function (answer) {
+
+      var query = "DELETE FROM employee WHERE role_id = ?";
+
+      console.log(answer.roleID);
+
+      connection.query(query, function (err, results) {
+        if (err) throw err;
+        console.table(results);
         runSearch();
       });
     });
 }
 
-function songSearch() {
+function updateEmpRole() {
   inquirer
-    .prompt({
-      name: "song",
-      type: "input",
-      message: "What song would you like to look for?"
-    })
-    .then(function(answer) {
-      console.log(answer.song);
-      connection.query("SELECT * FROM top5000 WHERE ?", { song: answer.song }, function(err, res) {
-        console.log(
-          "Position: " +
-            res[0].position +
-            " || Song: " +
-            res[0].song +
-            " || Artist: " +
-            res[0].artist +
-            " || Year: " +
-            res[0].year
-        );
+    .prompt([
+      {
+        name: "currentRole",
+        type: "input",
+        message: "What is the ID number of the employee to update?"
+
+      },
+
+      {
+        name: "roleUpdate",
+        type: "input",
+        message: "What role ID would you like to assign?"
+
+      }
+
+
+    ]).then(function (answer) {
+      var query = "UPDATE employee SET role_id = ? WHERE role_id = ?";
+      connection.query(query, [answer.roleUpdate, answer.currentRole], function (err, results) {
+        if (err) throw err;
+        console.table(results);
         runSearch();
-      });
-    });
+      })
+
+    })
+
 }
 
-function songAndAlbumSearch() {
+function updateEmpManager() {
   inquirer
-    .prompt({
-      name: "artist",
-      type: "input",
-      message: "What artist would you like to search for?"
-    })
-    .then(function(answer) {
-      var query = "SELECT top_albums.year, top_albums.album, top_albums.position, top5000.song, top5000.artist ";
-      query += "FROM top_albums INNER JOIN top5000 ON (top_albums.artist = top5000.artist AND top_albums.year ";
-      query += "= top5000.year) WHERE (top_albums.artist = ? AND top5000.artist = ?) ORDER BY top_albums.year, top_albums.position";
+    .prompt([
+      {
+        name: "currentManager",
+        type: "input",
+        message: "What is the ID number of the employee to update?"
 
-      connection.query(query, [answer.artist, answer.artist], function(err, res) {
-        console.log(res.length + " matches found!");
-        for (var i = 0; i < res.length; i++) {
-          console.log(
-            i+1 + ".) " +
-              "Year: " +
-              res[i].year +
-              " Album Position: " +
-              res[i].position +
-              " || Artist: " +
-              res[i].artist +
-              " || Song: " +
-              res[i].song +
-              " || Album: " +
-              res[i].album
-          );
-        }
+      },
 
+      {
+        name: "managerUpdate",
+        type: "input",
+        message: "What manager ID would you like to assign?"
+
+      }
+
+
+    ]).then(function (answer) {
+      var query = "UPDATE employee SET manager_id = ? WHERE role_id = ?";
+      connection.query(query, [answer.currentManager, answer.managerUpdate], function (err, results) {
+        if (err) throw err;
+        console.table(results);
         runSearch();
-      });
-    });
+      })
+
+    })
+
 }

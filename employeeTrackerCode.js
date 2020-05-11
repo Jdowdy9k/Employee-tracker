@@ -170,7 +170,7 @@ function delEmp() {
 
       console.log(answer.roleID);
 
-      connection.query(query, function (err, results) {
+      connection.query(query, [answer.roleID], function (err, results) {
         if (err) throw err;
         console.table(results);
         runSearch();
